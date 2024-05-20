@@ -33,7 +33,7 @@ ohlcv = fread("prices_pread.csv")
 # prices_dt = fread("/home/sn/data/strategies/pread/prices_pread.csv") # DEBUG
 
 # Create Ohlcv object
-ohlcv = Ohlcv$new(prices_dt[, .(symbol, date, open, high, low, close, volume)], 
+ohlcv = Ohlcv$new(ohlcv[, .(symbol, date, open, high, low, close, volume)], 
                   date_col = "date")
   
 # Lag parameter
