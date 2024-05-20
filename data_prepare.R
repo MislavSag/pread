@@ -12,6 +12,9 @@ PATH_DATASET = "/home/sn/data/strategies/pread"
 # Set NYSE calendarr
 setCalendar("UnitedStates/NYSE")
 
+# Constants
+update = TRUE
+
 
 # EARING ANNOUNCEMENT DATA ------------------------------------------------
 # get events data
@@ -171,8 +174,16 @@ dataset[date_prices == max(date_prices, na.rm = TRUE), .SD, .SDcols = c("date", 
 cols_ = c("date", "symbol", "maxret", "indmom")
 dataset[date == last_trading_day_corected, .SD, , .SDcols = cols_]
 
-# Save dataset locally
+# Save dataset and prices locally
 file_name = file.path(PATH_DATASET, "dataset_pread.csv")
 fwrite(dataset, file_name)
+file_name_p = file.path(PATH_DATASET, "prices_pread.csv")
+fwrite(prices_dt, file_name_p)
 
 # Mannually add to padobran
+# I have to enter password when exwcuted, not sure if it is possible to automate this
+# if (!update) {
+#   scp_command = "scp /home/sn/data/strategies/pread/dataset_pread.csv padobran:/home/jmaric/pread/dataset_pread.csv"
+#   system(scp_command)
+#   scp_command = "scp /home/sn/data/strategies/pread/prices_pread.csv padobran:/home/jmaric/pread/prices_pread.csv"
+# }

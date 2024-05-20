@@ -1,3 +1,5 @@
+options(progress_enabled = FALSE)
+
 library(data.table)
 library(finfeatures)
 library(reticulate)
@@ -13,7 +15,7 @@ warnigns = reticulate::import("warnings", convert = FALSE)
 warnigns$filterwarnings('ignore')
 
 # paths
-PATH_PREDICTORS = file.path("./predictors-daily-ohlcv-supek")
+PATH_PREDICTORS = file.path("./predictors")
 
 # Create directory if it doesnt exists
 if (!dir.exists(PATH_PREDICTORS)) {
@@ -24,9 +26,39 @@ if (!dir.exists(PATH_PREDICTORS)) {
 i = as.integer(Sys.getenv('PBS_ARRAY_INDEX'))
 # i = 1
 
-# Get OHLCV 
-dt = fread("predictors-ohlcv-daily.csv")
-# dt = fread("/home/sn/Downloads/predictors-ohlcv-daily.csv")
+# Get data
+dataset = fread("dataset_pread.csv")
+ohlcv = fread("prices_pread.csv")
+# dataset = fread("/home/sn/data/strategies/pread/dataset_pread.csv") # DEBUG
+# prices_dt = fread("/home/sn/data/strategies/pread/prices_pread.csv") # DEBUG
+
+# Create Ohlcv object
+ohlcv = Ohlcv$new(prices_dt[, .(symbol, date, open, high, low, close, volume)], 
+                  date_col = "date")
+  
+# Lag parameter
+# ako je red u events amc. label je open_t+1 / close_t; lag je 1L
+# ako je red u events bmo. label je open_t / close_t-1; lag je 2L
+# radi jednostavnosti lag_ = 2L
+lag_ = 2L
+
+# Window
+# Beaware of data size
+workers = 4L
+
+# Default windows. Set widnows you use the most in rolling predictors
+windows = c(66, 252) # day and 2H;  cca 10 days
+
+# Define at parameter
+at_ = merge(ohlcv$X[, .(symbol, date)],
+            dataset[, .(symbol, date, index = TRUE)],
+            by = c("symbol", "date"), all.x = TRUE, all.y = FALSE)
+at_ = at_[, which(index == TRUE)]
+
+# Help function to save rolling predictors output
+create_path = function(name) {
+  file.path(PATH_PREDICTORS, paste0(name, "-", i, ".csv"))
+}
 
 # Divide data on 1000 rows
 split_vector_into_chunks <- function(vector, chunks = 1000) {
@@ -54,19 +86,8 @@ split_vector_into_chunks <- function(vector, chunks = 1000) {
   
   return(subsamples)
 }
-at_sets = split_vector_into_chunks(1:nrow(dt), chunks = 1000)
-# 49.387.356
+at_sets = split_vector_into_chunks(at_, chunks = 1000)
 at = at_sets[[i]]
-
-# Create Ohlcv object
-ohlcv = Ohlcv$new(dt)
-
-# utils
-create_path = function(name) {
-  file.path(PATH_PREDICTORS, paste0(name, "-", i, ".csv"))
-}
-workers = 4L
-windows = c(66, 252) # day and 2H;  cca 10 days
 
 # Exuber
 path_ =   create_path("exuber")
@@ -97,11 +118,27 @@ if (max(at) > min(windows)) {
   fwrite(backcusum, path_) 
 }
 
+# Forecasts
+path_ = create_path("forecasts")
+windows_ = c(252, 252 * 2)
+if (max(at) > min(windows)) {
+  forecasts_init = RollingForecats$new(
+    windows = windows_,
+    workers = workers,
+    at = at,
+    lag = 0L,
+    forecast_type = c("autoarima", "nnetar", "ets"),
+    h = 22)
+  forecasts = suppressMessages(forecasts_init$get_rolling_features(ohlcv))
+  fwrite(forecasts, path_)
+}
+
 # Theft r
 path_ = create_path("theftr")
+windows_ = c(5, 22, windows)
 if (max(at) > min(windows)) {
   theft_init = RollingTheft$new(
-    windows = windows,
+    windows = windows_,
     workers = workers,
     at = at,
     lag = 0L,
@@ -112,29 +149,16 @@ if (max(at) > min(windows)) {
 
 # Theft py
 path_ = create_path("theftpy")
+windows_ = c(22, windows)
 if (max(at) > min(windows)) {
   theft_init = RollingTheft$new(
-    windows = windows,
+    windows = windows_,
     workers = 1L,
     at = at,
     lag = 0L,
     features_set = c("tsfel", "tsfresh"))
   theft_py = suppressMessages(theft_init$get_rolling_features(ohlcv))
   fwrite(theft_py, path_)
-}
-
-# Forecasts
-path_ = create_path("forecasts")
-if (max(at) > min(windows)) {
-  forecasts_init = RollingForecats$new(
-    windows = windows,
-    workers = workers,
-    at = at,
-    lag = 0L,
-    forecast_type = c("autoarima", "nnetar", "ets"),
-    h = 22)
-  forecasts = suppressMessages(forecasts_init$get_rolling_features(ohlcv))
-  fwrite(forecasts, path_)
 }
 
 # Tsfeatures
