@@ -15,7 +15,7 @@ warnigns = reticulate::import("warnings", convert = FALSE)
 warnigns$filterwarnings('ignore')
 
 # paths
-PATH_PREDICTORS = file.path("./predictors")
+PATH_PREDICTORS = file.path("./predictors_padobran")
 
 # Create directory if it doesnt exists
 if (!dir.exists(PATH_PREDICTORS)) {
