@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#PBS -N spymlpreds
-#PBS -l ncpus=4
+#PBS -N pread_predictions
+#PBS -l ncpus=2
 #PBS -l mem=100GB
 #PBS -J 1-1000
 #PBS -o logs

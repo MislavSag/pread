@@ -44,7 +44,7 @@ lag_ = 2L
 
 # Window
 # Beaware of data size
-workers = 4L
+workers = 2L
 
 # Default windows. Set widnows you use the most in rolling predictors
 windows = c(66, 252) # day and 2H;  cca 10 days
@@ -97,7 +97,7 @@ if (max(at) > min(windows)) {
     windows = windows_,
     workers = workers,
     at = at,
-    lag = 0L,
+    lag = lag_,
     exuber_lag = 1L
   )
   exuber = exuber_init$get_rolling_features(ohlcv, TRUE)
@@ -111,7 +111,7 @@ if (max(at) > min(windows)) {
     windows = windows_,
     workers = workers,
     at = at,
-    lag = 0L,
+    lag = lag_,
     alternative = c("greater", "two.sided"),
     return_power = c(1, 2))
   backcusum = backcusum_init$get_rolling_features(ohlcv)
@@ -126,7 +126,7 @@ if (max(at) > min(windows)) {
     windows = windows_,
     workers = workers,
     at = at,
-    lag = 0L,
+    lag = lag_,
     forecast_type = c("autoarima", "nnetar", "ets"),
     h = 22)
   forecasts = suppressMessages(forecasts_init$get_rolling_features(ohlcv))
@@ -141,7 +141,7 @@ if (max(at) > min(windows)) {
     windows = windows_,
     workers = workers,
     at = at,
-    lag = 0L,
+    lag = lag_,
     features_set = c("catch22", "feasts"))
   theft_r = theft_init$get_rolling_features(ohlcv)
   fwrite(theft_r, path_)
@@ -155,7 +155,7 @@ if (max(at) > min(windows)) {
     windows = windows_,
     workers = 1L,
     at = at,
-    lag = 0L,
+    lag = lag_,
     features_set = c("tsfel", "tsfresh"))
   theft_py = suppressMessages(theft_init$get_rolling_features(ohlcv))
   fwrite(theft_py, path_)
@@ -168,7 +168,7 @@ if (max(at) > min(windows)) {
     windows = windows,
     workers = workers,
     at = at,
-    lag = 0L,
+    lag = lag_,
     scale = TRUE)
   tsfeatures = suppressMessages(tsfeatures_init$get_rolling_features(ohlcv))
   fwrite(tsfeatures, path_)
@@ -181,7 +181,7 @@ if (max(at) > min(windows)) {
     windows = windows,
     workers = workers,
     at = at,
-    lag = 0L,
+    lag = lag_,
     filter = "haar")
   waveletarima = suppressMessages(waveletarima_init$get_rolling_features(ohlcv))
   fwrite(waveletarima, path_)
@@ -194,10 +194,13 @@ if (max(at) > min(windows)) {
     windows = windows,
     workers = workers,
     at = at,
-    lag = 0L,
+    lag = lag_,
     nar = c(1), 
     nma = c(1),
     bandw_exp = c(0.1, 0.5, 0.9))
   fracdiff = suppressMessages(fracdiff_init$get_rolling_features(ohlcv))
   fwrite(fracdiff, path_)
 }
+
+# Info
+sprintf("There should be max %d files in PATH_PREDICTORS", 8 * 1000)
