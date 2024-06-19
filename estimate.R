@@ -1025,8 +1025,8 @@ if (MODEL) {
   
   # import model
   models = dir_ls(path(last_file, "results"))
-  predictions_l = lapply(1:results$n_resample_results, function(i) {
-    # i = 1
+  predictions_l = lapply(1:length(models), function(i) {
+    # i = 4
     model_ = readRDS(models[i])
     
     ########### CHECK ############
@@ -1034,15 +1034,11 @@ if (MODEL) {
     # list all NA columns
     na_cols = test[, lapply(.SD, function(x) sum(is.na(x)))]
     colnames(test)[na_cols == nrow(test)]
-    # check na
-    test[is.na(tsfreshValuesPartialAutocorrelationLag2252), .(tsfreshValuesPartialAutocorrelationLag2252)]
-    test[, .(tsfreshValuesAggAutocorrelationfAggMeanMaxlag4022)]
-    # check tsfresh column names
-    colnames(test)[grep("tsfreshValuesLinearTrendAttrP", colnames(test), ignore.case = TRUE)]
     
     # test = test[, lapply(.SD, function(x) ifelse(is.na(x), runif(1), x))]
+    # cols_ = colnames(test)[grep("tsfreshValuesLinearTrendAttrP", colnames(test), ignore.case = TRUE)]
+    # test = test[, (cols_) := lapply(.SD, function(x) ifelse(is.na(x), runif(1), x)), .SDcols = cols_]
     predictions_= model_$learner_state$model$learner$predict_newdata(newdata = test)
-    test[, tsfreshValuesAggAutocorrelationfAggMedianMaxlag4066]
     test[, grepl("tsfreshValuesLinearTrendAttr", colnames(test))]
     ########### CHECK ############
     
@@ -1053,9 +1049,10 @@ if (MODEL) {
   })
   predictions = rbindlist(predictions_l, fill = TRUE)
   predictions[, learner := gsub("regr\\.", "", learner)]
-  predictions[!is.na(response.V1), response := response.V1]
-  predictions[, response.V1 := NULL]
-  predictions[, row_ids_backend]
+  if ("response.V1" %in% colnames(predictions)) {
+    predictions[is.na(response) & !is.na(response.V1), response := response.V1]  
+    predictions[, response.V1 := NULL]
+  }
 }
 
 # Save predictions for potential future use

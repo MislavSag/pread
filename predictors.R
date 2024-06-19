@@ -1,5 +1,6 @@
 options(progress_enabled = FALSE)
 
+# remotes::install_github("MislavSag/finfeatures")
 library(data.table)
 library(fs)
 library(finfeatures)
@@ -29,6 +30,15 @@ warnigns = reticulate::import("warnings", convert = FALSE)
 warnigns$filterwarnings('ignore')
 
 target_variables = c("amc_return", "bmo_return")
+
+# Utils
+# Move this to finfeatures
+clean_col_names = function(names) {
+  names = gsub(" |-|\\.|\"", "_", names)
+  names = gsub("_{2,}", "_", names)
+  names
+} 
+
 
 # PRICES AND EVENTS -------------------------------------------------------
 # Get data
@@ -327,27 +337,12 @@ if (meta[, any(lags == 2)]) {
   new = suppressMessages({predictors_init$get_rolling_features(ohlcv)})
   path_ = path(PATH_ROLLING, n_)
   old = fread(path(PATH_ROLLING, n_))
+  colnames(old) = clean_col_names(colnames(old))
+  colnames(new) = clean_col_names(colnames(new))
   new = rbind(old, new, fill = TRUE)
-  
-  # TODO: Fic column names in finfeatures
-  # t1 = clean_names(new)
-  # t2 = clean_names(old)
-  # colnames(t1)
-  # colnames(t2)
-  # length(t1)
-  # length(t2)
-  # setdiff(colnames(t1), colnames(t2))
-  # setdiff(colnames(t2), colnames(t1))
-  # setdiff(colnames(clean_names(old)), colnames(clean_names(new)))
-  # which(colnames(t1) == "tsfresh_values_fft_coefficient_attr_angle_coeff_75_66_2")
-  # colnames(t1)[3885]
-  # colnames(t2)[3885]
-  # dim(t1)
-  # dim(t2)
-  # colnames(old)[grepl("tsfresh", colnames(old))]
-  # colnames(t2)[grepl("tsfresh", colnames(t2))]
-  
   new = unique(new, by = c("symbol", "date"))
+  # new[, colnames(new)[duplicated(colnames(new))]]
+  new = new[, .SD, .SDcols = -new[, which(duplicated(colnames(new)))]]
   fwrite(new, path_)
 }
 if (meta[, any(lags == 0L)]) {
@@ -359,6 +354,9 @@ if (meta[, any(lags == 0L)]) {
     features_set = c("tsfel", "tsfresh")
   )
   new = predictors_init$get_rolling_features(ohlcv)
+  colnames(new) = clean_col_names(colnames(new))
+  # new[, colnames(new)[duplicated(colnames(new))]]
+  new = new[, .SD, .SDcols = -new[, which(duplicated(colnames(new)))]]
   path_ = path(PATH_ROLLING, glue("live_{n_}"))
   fwrite(new, path_)
 }
