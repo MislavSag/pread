@@ -45,7 +45,7 @@ snakeToCamel <- function(snake_str) {
 
 # Azure creditentials
 endpoint = "https://snpmarketdata.blob.core.windows.net/"
-key = "0M4WRlV0/1b6b3ZpFKJvevg4xbC/gaNBcdtVZW+zOZcRi0ZLfOm1v/j2FZ4v+o8lycJLu1wVE6HT+ASt0DdAPQ=="
+key = Sys.getenv("BLOBKEY")
 BLOBENDPOINT = storage_endpoint(endpoint, key=key)
 cont = storage_container(BLOBENDPOINT, "qc-live")
 
