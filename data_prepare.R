@@ -1,5 +1,6 @@
 library(data.table)
 library(arrow)
+library(dplyr)
 library(qlcal)
 library(duckdb)
 
@@ -78,6 +79,10 @@ events = events[events$same_announce_time == TRUE]
 # Remove duplicated events
 events = unique(events, by = c("symbol", "date"))
 
+# Keep only rows with similar eps
+eps_threshold = 0.05
+events = events[(eps >= eps_investingcom * 1-eps_threshold) & eps <= (1 + eps_threshold)]
+
 # Check last date
 events[, max(date)]
 events[date == max(date), symbol]
@@ -152,7 +157,7 @@ target_variables = c("amc_return", "bmo_return")
 remove_cols = c("open", "high", "low", "close", "volume", "close_raw", "returns")
 cols_keep = setdiff(colnames(prices_dt), remove_cols)
 
-# events that are in the future. If I use merge, it want merge newst data.
+# events that are in the future. If I use merge, it want merge newest data.
 events[, date_event := date] 
 prices_dt[, date_prices := date]
 dataset = prices_dt[, .SD, .SDcols = c("date_prices", cols_keep)][events, on = c("symbol", "date"), roll = Inf]

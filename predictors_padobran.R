@@ -30,7 +30,7 @@ i = as.integer(Sys.getenv('PBS_ARRAY_INDEX'))
 dataset = fread("dataset_pread.csv")
 ohlcv = fread("prices_pread.csv")
 # dataset = fread("/home/sn/data/strategies/pread/dataset_pread.csv") # DEBUG
-# prices_dt = fread("/home/sn/data/strategies/pread/prices_pread.csv") # DEBUG
+# ohlcv = fread("/home/sn/data/strategies/pread/prices_pread.csv") # DEBUG
 
 # Create Ohlcv object
 ohlcv = Ohlcv$new(ohlcv[, .(symbol, date, open, high, low, close, volume)], 
@@ -61,7 +61,7 @@ create_path = function(name) {
 }
 
 # Divide data on 1000 rows
-split_vector_into_chunks <- function(vector, chunks = 1000) {
+split_vector_into_chunks <- function(vector, chunks = 10000) {
   n <- length(vector)
   
   # Number of elements in most chunks
@@ -86,7 +86,7 @@ split_vector_into_chunks <- function(vector, chunks = 1000) {
   
   return(subsamples)
 }
-at_sets = split_vector_into_chunks(at_, chunks = 1000)
+at_sets = split_vector_into_chunks(at_, chunks = 10000)
 at = at_sets[[i]]
 
 # Exuber
@@ -98,9 +98,9 @@ if (max(at) > min(windows)) {
     workers = workers,
     at = at,
     lag = lag_,
-    exuber_lag = 1L
+    exuber_lag = c(1L)
   )
-  exuber = exuber_init$get_rolling_features(ohlcv, TRUE)
+  exuber = exuber_init$get_rolling_features(ohlcv, log_prices = TRUE)
   fwrite(exuber, path_)
 }
 
