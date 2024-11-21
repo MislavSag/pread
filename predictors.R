@@ -29,6 +29,7 @@ tsfel = reticulate::import("tsfel", convert = FALSE)
 warnigns = reticulate::import("warnings", convert = FALSE)
 warnigns$filterwarnings('ignore')
 
+# Define target variables
 target_variables = c("amc_return", "bmo_return")
 
 # Utils
@@ -38,7 +39,6 @@ clean_col_names = function(names) {
   names = gsub("_{2,}", "_", names)
   names
 } 
-
 
 # PRICES AND EVENTS -------------------------------------------------------
 # Get data

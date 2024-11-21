@@ -123,7 +123,7 @@ if (max(at_) > min(windows)) {
 }
 
 # Theft r with returns
-path_ = create_path("theftr")
+path_ = create_path("theftrr")
 windows_ = c(5, 22, windows)
 if (max(at_) > min(windows)) {
   theft_init = RollingTheft$new(
@@ -151,7 +151,7 @@ if (max(at_) > min(windows)) {
 }
 
 # Theft py
-path_ = create_path("theftpy")
+path_ = create_path("theftpyr")
 windows_ = c(22, windows)
 if (max(at_) > min(windows)) {
   theft_init = RollingTheft$new(
@@ -203,20 +203,6 @@ if (max(at_) > min(windows)) {
     bandw_exp = c(0.1, 0.5, 0.9))
   fracdiff = suppressMessages(fracdiff_init$get_rolling_features(ohlcv))
   fwrite(fracdiff, path_)
-}
-
-# VSE
-path_ = create_path("vse")
-windows_ = c(22, 44, 150, windows, 504)
-if (max(at_) > min(windows)) {
-  vse_init = RollingVse$new(
-    windows = windows_,
-    workers = workers,
-    at = at_,
-    lag = lag_,
-    m = c(0.4, 0.5))
-  vse = vse_init$get_rolling_features(ohlcv)
-  fwrite(vse, path_)
 }
 
 # VSE
