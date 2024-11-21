@@ -192,7 +192,7 @@ cont = sprintf(
 
 #PBS -N pread_predictions
 #PBS -l ncpus=1
-#PBS -l mem=1GB
+#PBS -l mem=4GB
 #PBS -J 1-%d
 #PBS -o logs
 #PBS -j oe

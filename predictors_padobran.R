@@ -81,7 +81,7 @@ if (max(at_) > min(windows)) {
 
 # Backcusum
 path_ = create_path("backcusum")
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   backcusum_init = RollingBackcusum$new(
     windows = windows_,
     workers = workers,
@@ -96,7 +96,7 @@ if (max(at) > min(windows)) {
 # Forecasts
 path_ = create_path("forecasts")
 windows_ = c(252, 252 * 2)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   forecasts_init = RollingForecats$new(
     windows = windows_,
     workers = workers,
@@ -111,7 +111,7 @@ if (max(at) > min(windows)) {
 # Theft r
 path_ = create_path("theftr")
 windows_ = c(5, 22, windows)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   theft_init = RollingTheft$new(
     windows = windows_,
     workers = workers,
@@ -125,7 +125,7 @@ if (max(at) > min(windows)) {
 # Theft r with returns
 path_ = create_path("theftr")
 windows_ = c(5, 22, windows)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   theft_init = RollingTheft$new(
     windows = windows_,
     workers = workers,
@@ -139,7 +139,7 @@ if (max(at) > min(windows)) {
 # Theft py
 path_ = create_path("theftpy")
 windows_ = c(22, windows)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   theft_init = RollingTheft$new(
     windows = windows_,
     workers = 1L,
@@ -153,7 +153,7 @@ if (max(at) > min(windows)) {
 # Theft py
 path_ = create_path("theftpy")
 windows_ = c(22, windows)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   theft_init = RollingTheft$new(
     windows = windows_,
     workers = 1L,
@@ -166,7 +166,7 @@ if (max(at) > min(windows)) {
 
 # Tsfeatures
 path_ = create_path("tsfeatures")
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   tsfeatures_init = RollingTsfeatures$new(
     windows = windows,
     workers = workers,
@@ -179,7 +179,7 @@ if (max(at) > min(windows)) {
 
 # WaveletArima
 path_ = create_path("waveletarima")
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   waveletarima_init = RollingWaveletArima$new(
     windows = windows,
     workers = workers,
@@ -192,7 +192,7 @@ if (max(at) > min(windows)) {
 
 # FracDiff
 path_ = create_path("fracdiff")
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   fracdiff_init = RollingFracdiff$new(
     windows = windows,
     workers = workers,
@@ -208,7 +208,7 @@ if (max(at) > min(windows)) {
 # VSE
 path_ = create_path("vse")
 windows_ = c(22, 44, 150, windows, 504)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   vse_init = RollingVse$new(
     windows = windows_,
     workers = workers,
@@ -222,7 +222,7 @@ if (max(at) > min(windows)) {
 # VSE
 path_ = create_path("vse")
 windows_ = c(22, 44, 150, windows, 504)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   vse_init = RollingVse$new(
     windows = windows_,
     workers = workers,
