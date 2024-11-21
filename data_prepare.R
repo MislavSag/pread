@@ -199,7 +199,7 @@ cont = sprintf(
 
 cd ${PBS_O_WORKDIR}
 
-apptainer run image.sif predictors_padobran.R",
+apptainer run image_predictors.sif predictors_padobran.R",
 length(list.files(dataset_dir)))
 writeLines(cont, "predictors_padobran.sh")
 

@@ -9,4 +9,4 @@
 
 cd ${PBS_O_WORKDIR}
 
-apptainer run image.sif predictors_padobran.R
+apptainer run image_predicotrs.sif predictors_padobran.R
