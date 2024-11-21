@@ -26,15 +26,19 @@ if (!dir.exists(PATH_PREDICTORS)) {
 i = as.integer(Sys.getenv('PBS_ARRAY_INDEX'))
 # i = 1
 
+# Get symbol
+# symbols = gsub("\\.csv", "", list.files("/home/sn/data/strategies/pread/dataset"))
+symbols = gsub("\\.csv", "", list.files("dataset"))
+symbol_i = symbols[i]
+
 # Get data
-dataset = fread("dataset_pread.csv")
-ohlcv = fread("prices_pread.csv")
-# dataset = fread("/home/sn/data/strategies/pread/dataset_pread.csv") # DEBUG
-# ohlcv = fread("/home/sn/data/strategies/pread/prices_pread.csv") # DEBUG
+# dataset = fread(file.path("/home/sn/data/strategies/pread/dataset", paste0(symbol_i, ".csv")))
+# ohlcv = fread(file.path("/home/sn/data/strategies/pread/prices", paste0(symbol_i, ".csv")))
+dataset = fread(file.path("dataset", paste0(symbol_i, ".csv")))
+ohlcv = fread(file.path("prices", paste0(symbol_i, ".csv")))
 
 # Create Ohlcv object
-ohlcv = Ohlcv$new(ohlcv[, .(symbol, date, open, high, low, close, volume)], 
-                  date_col = "date")
+ohlcv = Ohlcv$new(ohlcv[, .(symbol, date, open, high, low, close, volume)], date_col = "date")
   
 # Lag parameter
 # ako je red u events amc. label je open_t+1 / close_t; lag je 1L
@@ -44,7 +48,7 @@ lag_ = 2L
 
 # Window
 # Beaware of data size
-workers = 2L
+workers = 1L
 
 # Default windows. Set widnows you use the most in rolling predictors
 windows = c(66, 252) # day and 2H;  cca 10 days
@@ -57,46 +61,17 @@ at_ = at_[, which(index == TRUE)]
 
 # Help function to save rolling predictors output
 create_path = function(name) {
-  file.path(PATH_PREDICTORS, paste0(name, "-", i, ".csv"))
+  file.path(PATH_PREDICTORS, paste0(name, "-", symbol_i, ".csv"))
 }
-
-# Divide data on 1000 rows
-split_vector_into_chunks <- function(vector, chunks = 10000) {
-  n <- length(vector)
-  
-  # Number of elements in most chunks
-  base_size <- floor(n / chunks)
-  
-  # Calculate how many chunks need one extra element to account for the remainder
-  remainder <- n %% chunks
-  extra_sizes <- ifelse(seq_len(chunks) <= remainder, 1, 0)
-  
-  # Total elements per chunk
-  chunk_sizes <- base_size + extra_sizes
-  
-  # Create the breaks for the chunks
-  breaks <- c(0, cumsum(chunk_sizes))
-  
-  # Split the vector into chunks
-  subsamples <- vector("list", length = chunks)
-  for (i in seq_len(chunks)) {
-    subsamples[[i]] <- vector[length = chunk_sizes[i]]
-    subsamples[[i]] <- vector[(breaks[i] + 1):breaks[i + 1]]
-  }
-  
-  return(subsamples)
-}
-at_sets = split_vector_into_chunks(at_, chunks = 10000)
-at = at_sets[[i]]
 
 # Exuber
 path_ =   create_path("exuber")
 windows_ = c(windows, 504)
-if (max(at) > min(windows)) {
+if (max(at_) > min(windows)) {
   exuber_init = RollingExuber$new(
     windows = windows_,
     workers = workers,
-    at = at,
+    at = at_,
     lag = lag_,
     exuber_lag = c(1L)
   )
@@ -110,7 +85,7 @@ if (max(at) > min(windows)) {
   backcusum_init = RollingBackcusum$new(
     windows = windows_,
     workers = workers,
-    at = at,
+    at = at_,
     lag = lag_,
     alternative = c("greater", "two.sided"),
     return_power = c(1, 2))
@@ -125,7 +100,7 @@ if (max(at) > min(windows)) {
   forecasts_init = RollingForecats$new(
     windows = windows_,
     workers = workers,
-    at = at,
+    at = at_,
     lag = lag_,
     forecast_type = c("autoarima", "nnetar", "ets"),
     h = 22)
@@ -140,10 +115,24 @@ if (max(at) > min(windows)) {
   theft_init = RollingTheft$new(
     windows = windows_,
     workers = workers,
-    at = at,
+    at = at_,
     lag = lag_,
     features_set = c("catch22", "feasts"))
   theft_r = theft_init$get_rolling_features(ohlcv)
+  fwrite(theft_r, path_)
+}
+
+# Theft r with returns
+path_ = create_path("theftr")
+windows_ = c(5, 22, windows)
+if (max(at) > min(windows)) {
+  theft_init = RollingTheft$new(
+    windows = windows_,
+    workers = workers,
+    at = at_,
+    lag = lag_,
+    features_set = c("catch22", "feasts"))
+  theft_r = theft_init$get_rolling_features(ohlcv, price_col = "returns")
   fwrite(theft_r, path_)
 }
 
@@ -154,7 +143,21 @@ if (max(at) > min(windows)) {
   theft_init = RollingTheft$new(
     windows = windows_,
     workers = 1L,
-    at = at,
+    at = at_,
+    lag = lag_,
+    features_set = c("tsfel", "tsfresh"))
+  theft_py = suppressMessages(theft_init$get_rolling_features(ohlcv, price_col = "returns"))
+  fwrite(theft_py, path_)
+}
+
+# Theft py
+path_ = create_path("theftpy")
+windows_ = c(22, windows)
+if (max(at) > min(windows)) {
+  theft_init = RollingTheft$new(
+    windows = windows_,
+    workers = 1L,
+    at = at_,
     lag = lag_,
     features_set = c("tsfel", "tsfresh"))
   theft_py = suppressMessages(theft_init$get_rolling_features(ohlcv))
@@ -167,7 +170,7 @@ if (max(at) > min(windows)) {
   tsfeatures_init = RollingTsfeatures$new(
     windows = windows,
     workers = workers,
-    at = at,
+    at = at_,
     lag = lag_,
     scale = TRUE)
   tsfeatures = suppressMessages(tsfeatures_init$get_rolling_features(ohlcv))
@@ -180,7 +183,7 @@ if (max(at) > min(windows)) {
   waveletarima_init = RollingWaveletArima$new(
     windows = windows,
     workers = workers,
-    at = at,
+    at = at_,
     lag = lag_,
     filter = "haar")
   waveletarima = suppressMessages(waveletarima_init$get_rolling_features(ohlcv))
@@ -193,7 +196,7 @@ if (max(at) > min(windows)) {
   fracdiff_init = RollingFracdiff$new(
     windows = windows,
     workers = workers,
-    at = at,
+    at = at_,
     lag = lag_,
     nar = c(1), 
     nma = c(1),
@@ -202,5 +205,30 @@ if (max(at) > min(windows)) {
   fwrite(fracdiff, path_)
 }
 
-# Info
-sprintf("There should be max %d files in PATH_PREDICTORS", 8 * 1000)
+# VSE
+path_ = create_path("vse")
+windows_ = c(22, 44, 150, windows, 504)
+if (max(at) > min(windows)) {
+  vse_init = RollingVse$new(
+    windows = windows_,
+    workers = workers,
+    at = at_,
+    lag = lag_,
+    m = c(0.4, 0.5))
+  vse = vse_init$get_rolling_features(ohlcv)
+  fwrite(vse, path_)
+}
+
+# VSE
+path_ = create_path("vse")
+windows_ = c(22, 44, 150, windows, 504)
+if (max(at) > min(windows)) {
+  vse_init = RollingVse$new(
+    windows = windows_,
+    workers = workers,
+    at = at_,
+    lag = lag_,
+    m = c(0.4, 0.5))
+  vse = vse_init$get_rolling_features(ohlcv)
+  fwrite(vse, path_)
+}

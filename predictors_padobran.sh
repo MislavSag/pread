@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #PBS -N pread_predictions
-#PBS -l ncpus=2
-#PBS -l mem=100GB
-#PBS -J 1-10000
+#PBS -l ncpus=1
+#PBS -l mem=1GB
+#PBS -J 1-4321
 #PBS -o logs
 #PBS -j oe
 

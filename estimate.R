@@ -9,9 +9,9 @@ library(mlr3pipelines)
 library(mlr3filters)
 library(mlr3tuning)
 library(mlr3extralearners)
-library(finautoml)
 library(batchtools)
 library(mlr3batchmark)
+library(finautoml)
 library(future)
 # library(mlr3torch)
 
@@ -95,7 +95,7 @@ cols_non_features = c(
 )
 cols_features = setdiff(colnames(DT), c(cols_non_features, "target"))
 
-# change feature and targets columns names due to lighgbm
+# Change feature and targets columns names due to lighgbm
 cols_features_new = vapply(cols_features, snakeToCamel, FUN.VALUE = character(1L), USE.NAMES = FALSE)
 setnames(DT, cols_features, cols_features_new)
 cols_features = cols_features_new
@@ -268,31 +268,6 @@ custom_cvs[[1]] = create_custom_rolling_windows(
 )
 
 
-# # PREDICTIONS -------------------------------------------------------------
-# if (!MODEL) {
-#   # get data for last fold
-#   cv_live = task$backend$data(
-#     rows = custom_cvs[[1]]$outer$instance$test[[custom_cvs[[1]]$outer$iters]],
-#     cols = task$backend$colnames[1:15]
-#   )
-#   cv_live[date == Sys.Date()]
-#   
-#   # get last registry folder
-#   live_dirs = dir_ls(regexp = "experiments_pread_live")
-#   dates_ = as.Date(gsub(".*?(\\d+)", "\\1", live_dirs), format = "%Y%m%d")
-#   last_file = names(dates_[which.max(dates_)])
-#   
-#   # read registriy
-#   reg = loadRegistry(last_file)
-#   
-#   # read results
-#   results = reduceResultsBatchmark(reg = reg)
-#   
-#   # predictions for today
-#   results$
-# }
-
-
 # ADD PIPELINES -----------------------------------------------------------
 print("Add pipelines")
 
@@ -423,16 +398,16 @@ search_space_template = ps(
 #   sp_grid = generate_design_grid(search_space_template, 1)
 #   sp_grid = sp_grid$data
 #   sp_grid
-#
+# 
 #   # check ids of nth cv sets
 #   train_ids = custom_cvs[[1]]$inner$instance$train[[1]]
-#
+# 
 #   # help graph for testing preprocessing
 #   preprocess_test = function(
-    #     fb_ = c("nop_filter_target", "filter_target_select")
+#     fb_ = c("nop_filter_target", "filter_target_select")
 #     ) {
 #     fb_ = match.arg(fb_) # fb_ = "nop_filter_target"
-#     task_ = tasks[[1]]$clone()
+#     task_ = task$clone()
 #     nr = task_$nrow
 #     rows_ = (nr-10000):nr
 #     # task_$filter(rows_)
@@ -448,7 +423,7 @@ search_space_template = ps(
 #     # gr_test$param_set$values$scale_branch.selection = sc_
 #     return(gr_test$train(task_))
 #   }
-#
+# 
 #   # test graph preprocesing
 #   system.time({test_default = preprocess_test()})
 #   # test_2 = preprocess_test(fb_ = "filter_target_select")
@@ -936,7 +911,7 @@ if (MODEL) {
   reg = makeExperimentRegistry(file.dir = dirname_, seed = 1, packages = packages)
   
   # Populate registry with problems and algorithms to form the jobs
-  batchmark(designs, store_models = TRUE, reg = reg)
+  batchmark(designs[1:5], store_models = TRUE, reg = reg)
   
   # Save registry
   saveRegistry(reg = reg)

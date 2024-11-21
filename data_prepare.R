@@ -2,7 +2,6 @@ library(data.table)
 library(arrow)
 library(dplyr)
 library(qlcal)
-library(duckdb)
 
 
 # SET UP ------------------------------------------------------------------
@@ -15,7 +14,6 @@ setCalendar("UnitedStates/NYSE")
 
 # Constants
 update = TRUE
-
 
 # EARING ANNOUNCEMENT DATA ------------------------------------------------
 # get events data
@@ -87,22 +85,18 @@ events = events[(eps >= eps_investingcom * 1-eps_threshold) & eps <= (1 + eps_th
 events[, max(date)]
 events[date == max(date), symbol]
 
-
 # MARKET DATA AND FUNDAMENTALS ---------------------------------------------
-# Initialize connection to DuckDB
-con = dbConnect(duckdb::duckdb())
+# Get factors
 path_to_parquet = fs::path(PATH, "predictors_daily", "factors", "prices_factors.parquet")
 events_symbols = c(events[, unique(symbol)], "SPY")
-query <- sprintf("
-  SELECT *
-  FROM read_parquet('%s')
-  WHERE date > '2008-01-01'
-    AND symbol IN (%s)
-  ORDER BY symbol, date
-", path_to_parquet, paste(shQuote(events_symbols), collapse = ", "))
-prices_dt = dbGetQuery(con, query)
+prices_dt = open_dataset(path_to_parquet, format = "parquet") |>
+  dplyr::filter(date > "2008-01-01", symbol %in% events_symbols) |>
+  dplyr::arrange(symbol, date) |>
+  collect() |>
 setDT(prices_dt)
-duckdb::dbDisconnect(con)
+
+# Checks and summarizies
+prices_dt[, max(date, na.rm = TRUE)]
 
 # Filter dates and symbols
 prices_dt = unique(prices_dt, by = c("symbol", "date"))
@@ -116,19 +110,14 @@ symbols_remove = prices_dt[sd_roll == 0, unique(symbol)]
 prices_dt = prices_dt[symbol %notin% symbols_remove]
 
 # SPY data
-con = dbConnect(duckdb::duckdb())
-path_ = "/home/sn/data/equity/daily_fmp_all.csv"
-query <- sprintf("
-  SELECT *
-  FROM read_csv_auto('%s', sample_size=-1)
-  WHERE Symbol = '%s'
-", path_, "SPY")
-data_ <- dbGetQuery(con, query)
-duckdb::dbDisconnect(con)
-setDT(data_)
-data_ = data_[, .(date = date, close = adjClose)]
-data_[, returns := close / shift(close) - 1]
-spy = na.omit(data_)
+spy = open_dataset("/home/sn/data/equity/daily_fmp_all.csv", format = "csv") |>
+  dplyr::filter(symbol == "SPY") |>
+  dplyr::select(date, adjClose) |>
+  dplyr::rename(close = adjClose) |>
+  collect()
+setDT(spy)
+spy[, returns := close / shift(close) - 1]
+spy = na.omit(spy)  
 
 # Free memory
 gc()
@@ -137,12 +126,11 @@ gc()
 # This checks should be done after market closes, but my data is updated after 
 # 00:00, so take this into account
 events[, max(date)]
-last_trading_day = events[, last(sort(unique(date)), 3)[1]]
-last_trading_day_corected = events[, last(sort(unique(date)), 4)[1]]
+last_trading_day = events[, data.table::last(sort(unique(date)), 3)[1]]
+last_trading_day_corected = events[, data.table::last(sort(unique(date)), 4)[1]]
 prices_dt[, max(date)]
 prices_dt[date == last_trading_day]
 prices_dt[date == last_trading_day_corected]
-
 
 # LABELING ----------------------------------------------------------
 # Labeling depending on strategy
@@ -179,12 +167,53 @@ dataset[date_prices == max(date_prices, na.rm = TRUE), .SD, .SDcols = c("date", 
 cols_ = c("date", "symbol", "maxret", "indmom")
 dataset[date == last_trading_day_corected, .SD, , .SDcols = cols_]
 
-# Save dataset and prices locally
-file_name = file.path(PATH_DATASET, "dataset_pread.csv")
-fwrite(dataset, file_name)
-file_name_p = file.path(PATH_DATASET, "prices_pread.csv")
-fwrite(prices_dt, file_name_p)
+# Save every symbol separately
+dataset_dir = file.path(PATH_DATASET, "dataset")
+if (!dir.exists(dataset_dir)) {
+  dir.create(dataset_dir)
+}
+prices_dir = file.path(PATH_DATASET, "prices")
+if (!dir.exists(prices_dir)) {
+  dir.create(prices_dir)
+}
+for (s in dataset[, unique(symbol)]) {
+  dt_ = dataset[symbol == s]
+  prices_ = prices_dt[symbol == s]
+  if (nrow(dt_) == 0 | nrow(prices_) == 0) next
+  file_name = file.path(dataset_dir, paste0(s, ".csv"))
+  fwrite(dt_, file_name)
+  file_name = file.path(prices_dir, paste0(s, ".csv"))
+  fwrite(prices_, file_name)
+}
 
+# Create sh file for predictors
+cont = sprintf(
+"#!/bin/bash
+
+#PBS -N pread_predictions
+#PBS -l ncpus=1
+#PBS -l mem=1GB
+#PBS -J 1-%d
+#PBS -o logs
+#PBS -j oe
+
+cd ${PBS_O_WORKDIR}
+
+apptainer run image.sif predictors_padobran.R",
+length(list.files(dataset_dir)))
+writeLines(cont, "predictors_padobran.sh")
+
+# Add to padobran
+# scp -r /home/sn/data/strategies/pread/dataset/ padobran:/home/jmaric/pread/dataset
+# scp -r /home/sn/data/strategies/pread/prices padobran:/home/jmaric/pread/prices
+
+# ARCHIVE -----------------------------------------------------------------
+# # Save dataset and prices locally
+# file_name = file.path(PATH_DATASET, "dataset_pread.csv")
+# fwrite(dataset, file_name)
+# file_name_p = file.path(PATH_DATASET, "prices_pread.csv")
+# fwrite(prices_dt, file_name_p)
+# 
 # Mannually add to padobran
 # I have to enter password when exwcuted, not sure if it is possible to automate this
 # if (!update) {
