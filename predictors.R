@@ -42,8 +42,10 @@ clean_col_names = function(names) {
 
 # PRICES AND EVENTS -------------------------------------------------------
 # Get data
-dataset = fread(path(PATH, "dataset_pread.csv"))
-ohlcv   = fread(path(PATH, "prices_pread.csv"))
+dataset = lapply(list.files(file.path(PATH, "dataset"), full.names = TRUE), fread)
+dataset = rbindlist(dataset)
+ohlcv = lapply(list.files(file.path(PATH, "prices"), full.names = TRUE), fread)
+ohlcv = rbindlist(ohlcv)
 ohlcv = Ohlcv$new(ohlcv[, .(symbol, date, open, high, low, close, volume)], 
                   date_col = "date")
 
@@ -69,7 +71,7 @@ windows = c(66, 252) # day and 2H;  cca 10 days
 
 # Define at parameter
 ohlcv_max_date = ohlcv$X[, max(date)]
-get_at = function(n = "exuber.csv") {
+get_at = function(n = "exuber.csv", remove_old = TRUE) {
   # n = "backcusum.csv"
   if (is.null(n)) {
     new_dataset = dataset[, .(symbol, date = as.IDate(date))]
@@ -90,6 +92,12 @@ get_at = function(n = "exuber.csv") {
   new_data = new_data[index == TRUE, .(symbol, date_ohlcv, date_event, n)]
   new_data[, lags := 2L]
   new_data[date_event > date_ohlcv, lags := 0L]
+  
+  # Skip everything before padobran
+  if (remove_old) {
+    new_data[date_ohlcv > as.Date("2024-11-01")]
+  }
+  return(new_data)
 }
 
 # Exuber
@@ -194,6 +202,39 @@ if (meta[, any(lags == 0L)]) {
 
 # Theft r
 n_ = "theftr.csv"
+meta = get_at(n_)
+windows_ = c(5, 22, windows)
+if (meta[, any(lags == 2)]) {
+  predictors_init = RollingTheft$new(
+    windows = windows_,
+    workers = workers,
+    at = meta[lags == 2, n],
+    lag = 2L,
+    features_set = c("catch22", "feasts")
+  )
+  new = predictors_init$get_rolling_features(ohlcv)
+  path_ = path(PATH_ROLLING, n_)
+  old = fread(path(PATH_ROLLING, n_))
+  new = rbind(old, new, fill = TRUE)
+  new[, c("feasts____22_5", "feasts____25_22") := NULL]
+  new = unique(new, by = c("symbol", "date"))
+  fwrite(new, path_)
+}
+if (meta[, any(lags == 0L)]) {
+  predictors_init = RollingTheft$new(
+    windows = windows_,
+    workers = workers,
+    at = meta[lags == 0L, n],
+    lag = 0L,
+    features_set = c("catch22", "feasts")
+  )
+  new = predictors_init$get_rolling_features(ohlcv)
+  path_ = path(PATH_ROLLING, glue("live_{n_}"))
+  fwrite(new, path_)
+}
+
+# Theft r with returns
+n_ = "theftrr.csv"
 meta = get_at(n_)
 windows_ = c(5, 22, windows)
 if (meta[, any(lags == 2)]) {
@@ -361,11 +402,99 @@ if (meta[, any(lags == 0L)]) {
   fwrite(new, path_)
 }
 
-# merge all features test
-fnames = unique(gsub("-.*", "", dir_ls(PATH_ROLLING)))
+# Theft py with returns
+n_ = "theftpyr.csv"
+meta = get_at(n_)
+windows_ = c(22, windows)
+if (meta[, any(lags == 2)]) {
+  predictors_init = RollingTheft$new(
+    windows = windows_,
+    workers = workers,
+    at = meta[lags == 2, n],
+    lag = 2L,
+    features_set = c("tsfel", "tsfresh")
+  )
+  new = suppressMessages({predictors_init$get_rolling_features(ohlcv)})
+  path_ = path(PATH_ROLLING, n_)
+  old = fread(path(PATH_ROLLING, n_))
+  colnames(old) = clean_col_names(colnames(old))
+  colnames(new) = clean_col_names(colnames(new))
+  new = rbind(old, new, fill = TRUE)
+  new = unique(new, by = c("symbol", "date"))
+  # new[, colnames(new)[duplicated(colnames(new))]]
+  new = new[, .SD, .SDcols = -new[, which(duplicated(colnames(new)))]]
+  fwrite(new, path_)
+}
+if (meta[, any(lags == 0L)]) {
+  predictors_init = RollingTheft$new(
+    windows = windows_,
+    workers = workers,
+    at = meta[lags == 0L, n],
+    lag = 0L,
+    features_set = c("tsfel", "tsfresh")
+  )
+  new = predictors_init$get_rolling_features(ohlcv)
+  colnames(new) = clean_col_names(colnames(new))
+  # new[, colnames(new)[duplicated(colnames(new))]]
+  new = new[, .SD, .SDcols = -new[, which(duplicated(colnames(new)))]]
+  path_ = path(PATH_ROLLING, glue("live_{n_}"))
+  fwrite(new, path_)
+}
+
+# Vse
+n_ = "vse.csv"
+meta = get_at(n_)
+windows_ = c(22, windows)
+if (meta[, any(lags == 2)]) {
+  predictors_init = RollingTheft$new(
+    windows = windows_,
+    workers = workers,
+    at = meta[lags == 2, n],
+    lag = 2L,
+    features_set = c("tsfel", "tsfresh")
+  )
+  new = suppressMessages({predictors_init$get_rolling_features(ohlcv)})
+  path_ = path(PATH_ROLLING, n_)
+  old = fread(path(PATH_ROLLING, n_))
+  colnames(old) = clean_col_names(colnames(old))
+  colnames(new) = clean_col_names(colnames(new))
+  new = rbind(old, new, fill = TRUE)
+  new = unique(new, by = c("symbol", "date"))
+  # new[, colnames(new)[duplicated(colnames(new))]]
+  new = new[, .SD, .SDcols = -new[, which(duplicated(colnames(new)))]]
+  fwrite(new, path_)
+}
+if (meta[, any(lags == 0L)]) {
+  predictors_init = RollingTheft$new(
+    windows = windows_,
+    workers = workers,
+    at = meta[lags == 0L, n],
+    lag = 0L,
+    features_set = c("tsfel", "tsfresh")
+  )
+  new = predictors_init$get_rolling_features(ohlcv)
+  colnames(new) = clean_col_names(colnames(new))
+  # new[, colnames(new)[duplicated(colnames(new))]]
+  new = new[, .SD, .SDcols = -new[, which(duplicated(colnames(new)))]]
+  path_ = path(PATH_ROLLING, glue("live_{n_}"))
+  fwrite(new, path_)
+}
+
+# Prepare features for merge
+rolling_predictors = lapply(fnames[!grepl("live", fnames)], fread)
+names(rolling_predictors) = gsub("\\.csv", "", basename(fnames[!grepl("live", fnames)]))
+colnames(rolling_predictors[["theftrr"]])[-(1:2)] = paste0(colnames(rolling_predictors[["theftrr"]])[-(1:2)], 
+                                                           "_returns") 
+colnames(rolling_predictors[["theftpyr"]])[-(1:2)] = paste0(colnames(rolling_predictors[["theftpyr"]])[-(1:2)], 
+                                                           "_returns") 
+rolling_predictors = lapply(rolling_predictors, function(dt_) {
+  dt_[, !duplicated(names(dt_)), with = FALSE]
+})
+
+# Merge signals
 rolling_predictors = Reduce(
   function(x, y) merge( x, y, by = c("symbol", "date"), all.x = TRUE, all.y = FALSE),
-  lapply(fnames[!grepl("live", fnames)], fread)
+  rolling_predictors
 )
 rolling_predictors_new =  Reduce(
   function(x, y) merge( x, y, by = c("symbol", "date"), all.x = TRUE, all.y = FALSE),
@@ -377,10 +506,9 @@ dim(rolling_predictors)
 # Fix column names
 rolling_predictors = clean_names(rolling_predictors)
 
-
 # OHLCV PREDICTORS --------------------------------------------------------
 # Define at parameter
-at_meta = get_at(NULL)
+at_meta = get_at(NULL, FALSE)
 at_meta[, lags := 2L]
 at_meta[date_event > date_ohlcv, lags := 0L]
 keep_ohlcv = at_meta[, n] - at_meta[, lags]
@@ -395,7 +523,6 @@ ohlcv_init = OhlcvFeaturesDaily$new(
 ohlcv_features = ohlcv_init$get_ohlcv_features(copy(ohlcv$X))
 setorderv(ohlcv_features, c("symbol", "date"))
 ohlcv_features_sample = ohlcv_features[keep_ohlcv]
-
 
 # CHECKS ------------------------------------------------------------------
 ### Importmant notes:
@@ -485,8 +612,6 @@ features[date != date_dataset, .(symbol, date, date_prices, date_dataset)]
 rm(ohlcv_features)
 gc()
 
-
-
 # FUNDAMENTALS ------------------------------------------------------------
 # import fundamental factors
 fundamentals = read_parquet(path(
@@ -556,16 +681,16 @@ features[, (char_cols) := lapply(.SD, as.numeric), .SDcols = char_cols]
 
 # MACRO -------------------------------------------------------------------
 # TODO ADD DAILY MACRO DATA AFTER I FINISH IMPORTING AND CLEANING MACRO DATA 
-# import FRED data
-fred_meta = fread(file.path("/home/sn/data/macro", "fred_meta.csv"))
-fred_meta[, unique(frequency_short)]
-fred_meta = fred_meta[frequency_short %chin% c("D", "W")]
-fred_meta = fred_meta[observation_start > as.IDate("2010-01-01") &
-                        observation_end > as.IDate("2023-12-31")]
-fred_dt = fread(file.path("/home/sn/data/macro", "fred_cleaned.csv"))
-fred_dt = fred_dt[series_id %chin% fred_meta[, id]]
-fred_dt = dcast(fred_dt, date_real ~ series_id, value.var = "value")
-dim(fred_dt)
+# # import FRED data
+# fred_meta = fread(file.path("/home/sn/data/macro", "fred_meta.csv"))
+# fred_meta[, unique(frequency_short)]
+# fred_meta = fred_meta[frequency_short %chin% c("D", "W")]
+# fred_meta = fred_meta[observation_start > as.IDate("2010-01-01") &
+#                         observation_end > as.IDate("2023-12-31")]
+# fred_dt = fread(file.path("/home/sn/data/macro", "fred_cleaned.csv"))
+# fred_dt = fred_dt[series_id %chin% fred_meta[, id]]
+# fred_dt = dcast(fred_dt, date_real ~ series_id, value.var = "value")
+# dim(fred_dt)
 
 # import macro factors
 macros = read_parquet(
@@ -676,9 +801,5 @@ file_name = paste0("pre-predictors-", last_pead_date, ".csv")
 file_name_local = fs::path(PATH_PREDICTORS, file_name)
 fwrite(clf_data, file_name_local)
 
-# # Save to Azure blob
-# endpoint = "https://snpmarketdata.blob.core.windows.net/"
-# key = "0M4WRlV0/1b6b3ZpFKJvevg4xbC/gaNBcdtVZW+zOZcRi0ZLfOm1v/j2FZ4v+o8lycJLu1wVE6HT+ASt0DdAPQ=="
-# BLOBENDPOINT = storage_endpoint(endpoint, key=key)
-# cont = storage_container(BLOBENDPOINT, "jphd")
-# storage_write_csv(clf_data, cont, file_name)
+# Add to padobran
+# scp /home/sn/data/equity/us/predictors_daily/pead_predictors/pre-predictors-20241112.csv padobran:/home/jmaric/pread/pre-predictors.csv
