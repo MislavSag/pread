@@ -58,6 +58,16 @@ if (interactive()) {
 # Remove industry and sector vars
 DT[, `:=`(industry = NULL, sector = NULL, right_time = NULL)]
 
+# Check number of observations by year month
+if (interactive()) {
+  library(ggplot2)
+  nobs = DT[, .(x = .N), by = .(ym = data.table::yearmon(date))][order(ym)]  
+  ggplot(nobs, aes(x = ym, y = x)) +
+    geom_line() +
+    labs(x = "Year month", y = "Number of observations", title = "Number of observations by year month") +
+    scale_x_yearmon(breaks = scales::pretty_breaks(n = 10))
+}
+
 # Define target variable
 DT[, target := amc_return]
 DT[time == "bmo", target := bmo_return]

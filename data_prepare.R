@@ -2,6 +2,7 @@ library(data.table)
 library(arrow)
 library(dplyr)
 library(qlcal)
+library(ggplot2)
 
 
 # SET UP ------------------------------------------------------------------
@@ -9,7 +10,7 @@ library(qlcal)
 PATH         = "/home/sn/data/equity/us"
 PATH_DATASET = "/home/sn/data/strategies/pread"
 
-# Set NYSE calendarr
+# Set NYSE calendar
 setCalendar("UnitedStates/NYSE")
 
 # Constants
@@ -18,6 +19,11 @@ update = TRUE
 # EARING ANNOUNCEMENT DATA ------------------------------------------------
 # get events data
 events = read_parquet(fs::path(PATH, "fundamentals", "earning_announcements", ext = "parquet"))
+
+# Plot number of rows by date
+ggplot(events[, .N, by = date][order(date)], aes(x = date, y = N)) +
+  geom_line() +
+  theme_minimal()
 
 # Coarse filtering 
 # IMPORTANT for LIVE: If we execute script after market close here 1, if day after then 2
@@ -50,6 +56,28 @@ setnames(investingcom_ea,
          colnames(investingcom_ea)[2:6],
          paste0(colnames(investingcom_ea)[2:6], "_investingcom"))
 
+# Plot number of rows by date
+ggplot(investingcom_ea[, .N, by = date_investingcom][order(date_investingcom)], 
+       aes(x = date_investingcom, y = N)) +
+  geom_line() +
+  theme_minimal()
+
+setorder(investingcom_ea, date_investingcom)
+investingcom_ea[date_investingcom %between% c("2024-11-01", "2024-11-08")][!is.na(eps_investingcom)]
+
+# Get earnings surprises data from FMP
+es = read_parquet(
+  fs::path(
+    PATH,
+    "fundamentals",
+    "earning_surprises",
+    ext = "parquet"
+  )
+)
+ggplot(es[, .N, by = date][order(date)], aes(x = date, y = N)) +
+  geom_line() +
+  theme_minimal()
+
 # merge DT and investing com earnings surprises
 events = merge(
   events,
@@ -59,6 +87,7 @@ events = merge(
   all.x = TRUE,
   all.y = FALSE
 )
+events = merge(events, es, by = c("symbol", "date"), all = TRUE)
   
 # keep only observations available in both datasets by checking dates
 events = events[!is.na(date) & !is.na(as.Date(time_investingcom))]
@@ -77,13 +106,22 @@ events = events[events$same_announce_time == TRUE]
 # Remove duplicated events
 events = unique(events, by = c("symbol", "date"))
 
-# Keep only rows with similar eps
-eps_threshold = 0.05
-events = events[(eps >= eps_investingcom * 1-eps_threshold) & eps <= (1 + eps_threshold)]
+# Keep only rows with similar eps at least in one of datasets (investing com of sueprises in FMP)
+eps_threshold = 0.1
+events_ic_similar  = events[(eps >= eps_investingcom * 1-eps_threshold) & eps <= (1 + eps_threshold)]
+events_fmp_similar = events[(eps >= actualEarningResult * 1-eps_threshold) & actualEarningResult <= (1 + eps_threshold)]
+events = unique(rbind(events_ic_similar, 
+                      events_fmp_similar, 
+                      events[date > (Sys.Date() - 1)]))
 
-# Check last date
-events[, max(date)]
-events[date == max(date), symbol]
+# Checks
+events[, max(date)] # last date
+events[date == max(date), symbol] # Symbols for last date
+
+# Plot number of rows by date
+ggplot(events[, .N, by = date][order(date)], aes(x = date, y = N)) +
+  geom_line() +
+  theme_minimal()
 
 # MARKET DATA AND FUNDAMENTALS ---------------------------------------------
 # Get factors
@@ -154,8 +192,8 @@ dataset = prices_dt[, .SD, .SDcols = c("date_prices", cols_keep)][events, on = c
 dataset[, .(date, date_event, date_prices)]
 dataset[ date_event != date_prices, .(date, date_event, date_prices)]
 events[, max(date)]
-last_trading_day = events[, last(sort(unique(date)), 3)[1]]
-last_trading_day_corected = events[, last(sort(unique(date)), 4)[1]]
+last_trading_day = events[, data.table::last(sort(unique(date)), 3)[1]]
+last_trading_day_corected = events[, data.table::last(sort(unique(date)), 4)[1]]
 prices_dt[, max(date)]
 prices_dt[date == last_trading_day]
 prices_dt[date == last_trading_day_corected]
@@ -206,18 +244,3 @@ writeLines(cont, "predictors_padobran.sh")
 # Add to padobran
 # scp -r /home/sn/data/strategies/pread/dataset/ padobran:/home/jmaric/pread/dataset
 # scp -r /home/sn/data/strategies/pread/prices padobran:/home/jmaric/pread/prices
-
-# ARCHIVE -----------------------------------------------------------------
-# # Save dataset and prices locally
-# file_name = file.path(PATH_DATASET, "dataset_pread.csv")
-# fwrite(dataset, file_name)
-# file_name_p = file.path(PATH_DATASET, "prices_pread.csv")
-# fwrite(prices_dt, file_name_p)
-# 
-# Mannually add to padobran
-# I have to enter password when exwcuted, not sure if it is possible to automate this
-# if (!update) {
-#   scp_command = "scp /home/sn/data/strategies/pread/dataset_pread.csv padobran:/home/jmaric/pread/dataset_pread.csv"
-#   system(scp_command)
-#   scp_command = "scp /home/sn/data/strategies/pread/prices_pread.csv padobran:/home/jmaric/pread/prices_pread.csv"
-# }
