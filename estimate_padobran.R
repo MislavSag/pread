@@ -110,6 +110,9 @@ DT = na.omit(DT, cols = "target")
 # filter data after 2013-07-01
 DT = DT[date >= as.IDate("2015-02-01")]
 
+# Checks
+DT[, max(date, na.rm = TRUE)]
+
 # change IDate to date, because of error
 # Assertion on 'feature types' failed: Must be a subset of
 # {'logical','integer','numeric','character','factor','ordered','POSIXct'},
@@ -946,7 +949,7 @@ saveRegistry(reg = reg)
 sh_file = sprintf("
 #!/bin/bash
 
-#PBS -N PEAD
+#PBS -N PREAD
 #PBS -l ncpus=4
 #PBS -l mem=32GB
 #PBS -J 1-%d
@@ -954,7 +957,7 @@ sh_file = sprintf("
 #PBS -j oe
 
 cd ${PBS_O_WORKDIR}
-apptainer run image.sif run_job.R 0 %s
+apptainer run image_estimate.sif run_job.R 0 %s
 ", nrow(designs), dirname_, dirname_)
 sh_file_name = "run_month_pre.sh"
 file.create(sh_file_name)
