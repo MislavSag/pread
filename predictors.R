@@ -43,7 +43,7 @@ clean_col_names = function(names) {
 # PRICES AND EVENTS -------------------------------------------------------
 # Get data
 dataset = lapply(list.files(file.path(PATH, "dataset"), full.names = TRUE), fread)
-dataset = rbindlist(dataset)
+dataset = rbindlist(dataset, fill = TRUE)
 ohlcv = lapply(list.files(file.path(PATH, "prices"), full.names = TRUE), fread)
 ohlcv = rbindlist(ohlcv)
 ohlcv = Ohlcv$new(ohlcv[, .(symbol, date, open, high, low, close, volume)], 
