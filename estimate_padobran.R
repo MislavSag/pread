@@ -939,6 +939,7 @@ if (interactive()) {
   if (dir.exists(dirname_)) system(paste0("rm -r ", dirname_))
 } else {
   dirname_ = "experiments_pre"
+  if (dir.exists(dirname_)) system(paste0("rm -r ", dirname_))
 }
 
 # Create registry
