@@ -48,7 +48,7 @@ if (interactive()) {
     pattern = "pre-",
     full.names = TRUE
   )
-  dates = as.Date(gsub(".*-", "", fs::path_ext_remove(path_file(pead_file_local))),
+  dates = as.Date(gsub(".*-", "", gsub("\\.csv", "", basename(pead_file_local))),
                   format = "%Y%m%d")
   DT = fread(pead_file_local[which.max(dates)])
 } else {
@@ -64,8 +64,7 @@ if (interactive()) {
   nobs = DT[, .(x = .N), by = .(ym = data.table::yearmon(date))][order(ym)]  
   ggplot(nobs, aes(x = ym, y = x)) +
     geom_line() +
-    labs(x = "Year month", y = "Number of observations", title = "Number of observations by year month") +
-    scale_x_yearmon(breaks = scales::pretty_breaks(n = 10))
+    labs(x = "Year month", y = "Number of observations", title = "Number of observations by year month")
 }
 
 # Define target variable

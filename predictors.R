@@ -56,11 +56,23 @@ ohlcv = Ohlcv$new(ohlcv[, .(symbol, date, open, high, low, close, volume)],
 # Clean padobran data
 fnames = unique(gsub("-.*", "", path_file(dir_ls(PATH_ROLLING_PADOBRAN))))
 fnames_exist = path_ext_remove(path_file(dir_ls(PATH_ROLLING)))  
-fnames = setdiff(fnames, fnames_exist)
-if (length(fnames) > 0) {
-  lapply(fnames, function(x) {
+fnames_miss = setdiff(fnames, fnames_exist)
+if (length(fnames_miss) > 0) {
+  lapply(fnames_miss, function(x) {
+    # x = "theftpy"
     dt_ = lapply(dir_ls(PATH_ROLLING_PADOBRAN, regexp = x), fread)
+    # dt_[[1]][, 1:10]
+    # dt_ = lapply(dt_, function(d) {
+    #   cols_remove = which(duplicated(colnames(d)))
+    #   d[, .SD, .SDcols = -cols_remove]
+    # })
+    # dt_ = lapply(dt_, function(y) {
+    #   cols = colnames(y)[3:ncol(y)]
+    #   y[, (cols) := lapply(.SD, as.numeric), .SDcols = cols] 
+    #   y
+    # })
     dt_ = rbindlist(dt_, fill = TRUE)
+    # dt_[, 1:10]
     fwrite(dt_, path(PATH_ROLLING, paste0(x, ".csv")))
   })
 }
@@ -95,7 +107,7 @@ get_at = function(n = "exuber.csv", remove_old = TRUE) {
   
   # Skip everything before padobran
   if (remove_old) {
-    new_data[date_ohlcv > as.Date("2024-11-01")]
+    new_data = new_data[date_ohlcv > as.Date("2024-11-01")]
   }
   return(new_data)
 }
@@ -155,7 +167,7 @@ if (meta[, any(lags == 2)]) {
 if (meta[, any(lags == 0L)]) {
   predictors_init = RollingBackcusum$new(
     windows = windows_,
-    workers = workers,
+    workers = if (nrow(meta) < 10) 1L else workers,
     at = meta[lags == 0L, n],
     lag = 0L,
     alternative = c("greater", "two.sided"),
@@ -189,7 +201,7 @@ if (meta[, any(lags == 2)]) {
 if (meta[, any(lags == 0L)]) {
   predictors_init = RollingForecats$new(
     windows = windows_,
-    workers = workers,
+    workers = if (nrow(meta) < 10) 1L else workers,
     at = meta[lags == 0L, n],
     lag = 0L,
     forecast_type = c("autoarima", "nnetar", "ets"),
@@ -223,7 +235,7 @@ if (meta[, any(lags == 2)]) {
 if (meta[, any(lags == 0L)]) {
   predictors_init = RollingTheft$new(
     windows = windows_,
-    workers = workers,
+    workers = if (nrow(meta) < 10) 1L else workers,
     at = meta[lags == 0L, n],
     lag = 0L,
     features_set = c("catch22", "feasts")
@@ -481,6 +493,7 @@ if (meta[, any(lags == 0L)]) {
 }
 
 # Prepare features for merge
+fnames = dir_ls(PATH_ROLLING)
 rolling_predictors = lapply(fnames[!grepl("live", fnames)], fread)
 names(rolling_predictors) = gsub("\\.csv", "", basename(fnames[!grepl("live", fnames)]))
 colnames(rolling_predictors[["theftrr"]])[-(1:2)] = paste0(colnames(rolling_predictors[["theftrr"]])[-(1:2)], 
@@ -516,13 +529,12 @@ keep_ohlcv = at_meta[, n] - at_meta[, lags]
 # Features from OHLLCV
 print("Calculate Ohlcv features.")
 ohlcv_init = OhlcvFeaturesDaily$new(
-  at = NULL,
+  at = keep_ohlcv,
   windows = c(5, 10, 22, 22 * 3, 22 * 6, 22 * 12, 22 * 12 * 2),
   quantile_divergence_window =  c(22, 22 * 3, 22 * 6, 22 * 12, 22 * 12 * 2)
 )
 ohlcv_features = ohlcv_init$get_ohlcv_features(copy(ohlcv$X))
 setorderv(ohlcv_features, c("symbol", "date"))
-ohlcv_features_sample = ohlcv_features[keep_ohlcv]
 
 # CHECKS ------------------------------------------------------------------
 ### Importmant notes:
@@ -534,7 +546,7 @@ ohlcv_features_sample = ohlcv_features[keep_ohlcv]
 # Check if dates corresponds to above notes
 symbol_ = "MSFT"
 dataset[symbol == symbol_, head(.SD), .SDcols = c("symbol", "date")]
-ohlcv_features_sample[symbol == symbol_, head(.SD), .SDcols = c("symbol", "date")]
+ohlcv_features[symbol == symbol_, head(.SD), .SDcols = c("symbol", "date")]
 rolling_predictors[symbol == symbol_, head(.SD), .SDcols = c("symbol", "date")]
 # We can see that rolling predictors have the same date as dataset. That is date
 # column in rolling predictors is the event date, that is date when earnings
@@ -546,25 +558,23 @@ rolling_predictors[symbol == symbol_, head(.SD), .SDcols = c("symbol", "date")]
 dataset[, max(date)]
 ohlcv$X[, max(date)]
 ohlcv_features[, max(date)]
-ohlcv_features_sample[, max(date)]
 rolling_predictors[, max(date)]
 dataset[date == max(date), .(symbol, date)]
 
 # Check dates before merge
 colnames(rolling_predictors)[grep("date", colnames(rolling_predictors))]
 colnames(dataset)[grep("date", colnames(dataset))]
-colnames(ohlcv_features_sample)[grep("date", colnames(ohlcv_features_sample))]
+colnames(ohlcv_features)[grep("date", colnames(ohlcv_features))]
 dataset[symbol == symbol_, .(date, updatedFromDate, date_prices, date_event)]
 rolling_predictors[symbol == symbol_, .(date)]
 ohlcv_features_sample[symbol == symbol_, .(date)]
 ohlcv_features_sample[, max(date)]
 
-
 # MERGE PREDICTORS --------------------------------------------------------
 # Merge OHLCV predictors and rolling predictors
 rolling_predictors[, date_rolling := date]
-ohlcv_features_sample[, date_ohlcv := date]
-features = rolling_predictors[ohlcv_features_sample, on = c("symbol", "date"), roll = -Inf]
+ohlcv_features[, date_ohlcv := date]
+features = rolling_predictors[ohlcv_features, on = c("symbol", "date"), roll = -Inf]
 
 # Check again merging dates
 features[symbol == symbol_, .(symbol, date_rolling, date_ohlcv, date)]
@@ -608,10 +618,6 @@ features[date != date_prices, .(symbol, date, date_prices)]
 features[date != date_dataset, .(symbol, date, date_prices, date_dataset)]
 # dage dataset is real event date, while in date it is the same for all eept last date
 
-# free memory
-rm(ohlcv_features)
-gc()
-
 # FUNDAMENTALS ------------------------------------------------------------
 # import fundamental factors
 fundamentals = read_parquet(path(
@@ -629,6 +635,9 @@ fundamentals[, acceptedDate := as.Date(acceptedDateTime)]
 fundamentals[, acceptedDateFundamentals := acceptedDate]
 data.table::setnames(fundamentals, "date", "fundamental_date")
 fundamentals = unique(fundamentals, by = c("symbol", "acceptedDate"))
+
+# Check last date for fundamentals
+fundamentals[, max(acceptedDate)]
 
 # Merge features and fundamental data
 features = fundamentals[features, on = c("symbol", "acceptedDate" = "date_ohlcv"), roll = Inf]
@@ -704,7 +713,7 @@ macros = read_parquet(
 )
 
 # Merge FRED and macro
-macros = merge(macros, fred_dt, by.x = "date", by.y = "date_real", all.x = TRUE, all.y = FALSE)
+# macros = merge(macros, fred_dt, by.x = "date", by.y = "date_real", all.x = TRUE, all.y = FALSE)
 macros = macros[date > as.IDate("2010-01-01")]
 
 # Macro data

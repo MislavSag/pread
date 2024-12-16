@@ -3,7 +3,7 @@
 #PBS -N pread_predictions
 #PBS -l ncpus=1
 #PBS -l mem=4GB
-#PBS -J 1-4580
+#PBS -J 1-4595
 #PBS -o logs
 #PBS -j oe
 
