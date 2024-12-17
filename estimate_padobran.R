@@ -701,7 +701,7 @@ as.data.table(graph_bart$param_set)[, .(id, class, lower, upper, levels)]
 search_space_bart = c(
   search_space_template,
   ps(
-    regr.bart.k      = p_int(lower = 1, upper = 10),
+    regr.bart.k      = p_dbl(lower = 1, upper = 10),
     regr.bart.numcut = p_int(lower = 10, upper = 200),
     regr.bart.ntree  = p_int(lower = 50, upper = 500)
   )

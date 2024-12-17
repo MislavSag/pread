@@ -20,12 +20,14 @@ BLOBENDPOINT = storage_endpoint(endpoint, key=blob_key)
 dir_save = "experiment"
 dir_path = path("/home/sn/data/strategies/pread/", dir_save)
 if (!dir_exists(dir_path)) dir_create(dir_path)
+# dir_delete(dir_path)
 # scp -r padobran:/home/jmaric/pread/experiments_pre/algorithms /home/sn/data/strategies/pread/experiment
 # scp -r padobran:/home/jmaric/pread/experiments_pre/exports /home/sn/data/strategies/pread/experiment
 # scp -r padobran:/home/jmaric/pread/experiments_pre/problems /home/sn/data/strategies/pread/experiment
 # scp -r padobran:/home/jmaric/pread/experiments_pre/results /home/sn/data/strategies/pread/experiment
 # scp -r padobran:/home/jmaric/pread/experiments_pre/updates /home/sn/data/strategies/pread/experiment
 # scp padobran:/home/jmaric/pread/experiments_pre/registry.rds /home/sn/data/strategies/pread/experiment/registry.rds
+# Doesnt work: # scp -r padobran:/home/jmaric/pread/experiments_pre/{algorithms,exports,problems,results,updates} /home/sn/data/strategies/pread/experiment
 
 # load registry
 reg = loadRegistry(dir_path, work.dir=dir_path)
@@ -41,12 +43,25 @@ ids_done = ids_done[job.id %in% results_files]
 ids_notdone = findNotDone(reg=reg)
 
 # Errors in logs
-# 1)
-
+# 1) Error in .Object$initialize(...) : 
+# k must be of real type if NA is not allowable and no default is specified
+# This happened PipeOp regr.bart's $train()
+# Calls: execJob ... resolve.list -> signalConditionsASAP -> signalConditions
+# 2) Error: The following packages could not be loaded: catboost
+# 12: (function (e) 
+#   traceback(2L))()
+# 11: stop(errorCondition(msg, packages = pkgs[ii], class = "packageNotFoundError"))
 
 # import already saved predictions
 # fs::dir_ls("predictions")
 # predictions = readRDS("predictions/predictions-20231025215620.rds")
+
+# Try get results
+x = mlr3batchmark::reduceResultsBatchmark(
+  ids = 1,
+  store_backends = FALSE,
+  reg = reg
+)
 
 # get results
 tabs = batchtools::getJobTable(ids_done, reg = reg)[

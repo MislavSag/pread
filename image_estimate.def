@@ -5,9 +5,7 @@ From: r-base:4.3.0
 
   # apt
   apt update
-  apt install libssl-dev -y
-  apt install libxml2-dev -y
-  apt install libcurl4-openssl-dev -y
+  apt install -y libssl-dev libxml2-dev libcurl4-openssl-dev build-essential g++ cmake
 
   # mlr3
   R --slave -e 'install.packages("R6")'
@@ -53,7 +51,7 @@ From: r-base:4.3.0
   R --slave -e 'install.packages("gbm")'
   R --slave -e 'install.packages("rsm")'
   R --slave -e 'install.packages("glmnet")'
-  R --slave -e 'remotes::install_url("https://github.com/catboost/catboost/releases/download/v1.2.7/catboost-R-linux-aarch64-1.2.7.tgz", INSTALL_opts = c("--no-multiarch", "--no-test-load"))'
+  R --slave -e 'remotes::install_url("https://github.com/catboost/catboost/releases/download/v1.2.7/catboost-R-linux-x86_64-1.2.7.tgz", INSTALL_opts = c("--no-multiarch", "--no-test-load"))'
   R --slave -e 'install.packages("torch")'
   R --slave -e 'torch::install_torch()'
   R --slave -e 'remotes::install_github("mlr-org/mlr3torch")'
